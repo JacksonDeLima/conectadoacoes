@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">ConectaDoações</string>
+    <string name="donor_tab">Quero Doar</string>
+    <string name="triage_tab">Triagem ONG</string>
+    <string name="title_donation_form">Nova Doação</string>
+    <string name="title_donation_triage">Painel de Triagem</string>
+</resources>
