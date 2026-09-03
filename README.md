@@ -3,12 +3,12 @@
 
 > **Projeto de Extensão Universitária**  
 > **Instituição:** Universidade do Vale do Rio dos Sinos – **UNISINOS**  
-> **Curso:** Engenharia de Software / Ciência da Computação  
+> **Curso:** ADS - Análise e Desenvolvimento de Sistemas - Campus São Leopoldo  
 > **Área Temática:** Tecnologia, Assistência Social e Sustentabilidade  
 
 ---
 
-## 🌍 1. Contexto Social e Diagnóstico Comunitário
+##  1. Contexto Social e Diagnóstico Comunitário
 
 O terceiro setor e as entidades de acolhimento social (casas de passagem, bancos de alimentos, lares de idosos e brechós comunitários) no Brasil enfrentam desafios logísticos e operacionais que comprometem sua eficiência assistencial:
 
@@ -21,7 +21,7 @@ O **ConectaDoações** foi concebido como uma resposta tecnológica a esses garg
 
 ---
 
-## 🎯 2. Alinhamento com os Objetivos de Desenvolvimento Sustentável (ODS – ONU)
+##  2. Alinhamento com os Objetivos de Desenvolvimento Sustentável (ODS – ONU)
 
 O projeto está formalmente vinculado à **Agenda 2030 das Nações Unidas**, atuando diretamente nos seguintes Objetivos de Desenvolvimento Sustentável:
 
@@ -34,7 +34,7 @@ O projeto está formalmente vinculado à **Agenda 2030 das Nações Unidas**, at
 
 ---
 
-## 🏛️ 3. Diretrizes da Extensão Universitária (MEC / CNE nº 7/2018)
+##  3. Diretrizes da Extensão Universitária (MEC / CNE nº 7/2018)
 
 O desenvolvimento deste projeto atende integralmente aos cinco princípios fundamentais que regem a extensão na educação superior brasileira:
 
@@ -46,7 +46,7 @@ O desenvolvimento deste projeto atende integralmente aos cinco princípios funda
 
 ---
 
-## 👥 4. Matriz de Atores e Proposta de Valor
+##  4. Matriz de Atores e Proposta de Valor
 
 ```
                      ┌─────────────────────────────────────────┐
@@ -71,7 +71,7 @@ O desenvolvimento deste projeto atende integralmente aos cinco princípios funda
 
 ---
 
-## 🧠 5. Princípios de Interação Humano-Computador (IHC) & Usabilidade
+##  5. Princípios de Interação Humano-Computador (IHC) & Usabilidade
 
 O sistema foi desenhado sob a ótica das **10 Heurísticas de Usabilidade de Jakob Nielsen**:
 
@@ -82,7 +82,7 @@ O sistema foi desenhado sob a ótica das **10 Heurísticas de Usabilidade de Jak
 
 ---
 
-## 🛠️ 6. Arquitetura de Software & Modelagem de Dados
+##  6. Arquitetura de Software & Modelagem de Dados
 
 O aplicativo segue o padrão **Offline-First**, garantindo funcionamento fluido mesmo em áreas com instabilidade de conexão móvel através de banco de dados SQLite embarcado com a biblioteca oficial **Android Jetpack Room v3**.
 
@@ -135,7 +135,7 @@ O aplicativo segue o padrão **Offline-First**, garantindo funcionamento fluido 
 
 ---
 
-## 📱 7. Funcionalidades e Fluxos das Telas
+##  7. Funcionalidades e Fluxos das Telas
 
 ### Tela 1: Visão do Doador (`DonationFormScreen.kt`)
 1. **Seletor Dinâmico de Entidade**: O cidadão escolhe para qual instituição do município deseja doar e visualiza sede e horário de atendimento.
@@ -153,7 +153,7 @@ O aplicativo segue o padrão **Offline-First**, garantindo funcionamento fluido 
 
 ---
 
-## 💻 8. Como Clonar, Compilar e Executar
+##  8. Como Clonar, Compilar e Executar
 
 ### Pré-requisitos
 * **Android Studio:** Ladybug (2024.2.1+) ou versão equivalente com suporte a AGP 8.x/9.x.
@@ -179,7 +179,7 @@ O aplicativo segue o padrão **Offline-First**, garantindo funcionamento fluido 
 
 ---
 
-## 📊 9. Indicadores de Impacto Social Estimado (KPIs)
+##  9. Indicadores de Impacto Social Estimado (KPIs)
 
 Para validação contínua da eficácia extensionista junto às ONGs parceiras, o projeto estabelece as seguintes métricas:
 
