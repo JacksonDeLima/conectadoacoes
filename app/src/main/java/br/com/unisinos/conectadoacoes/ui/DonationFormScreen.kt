@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import br.com.unisinos.conectadoacoes.data.Donation
 import br.com.unisinos.conectadoacoes.data.Ngo
@@ -596,16 +597,42 @@ fun DonationFormScreen(
             enabled = !isSubmitting,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(52.dp),
-            shape = RoundedCornerShape(12.dp)
+                .defaultMinSize(minHeight = 56.dp),
+            shape = RoundedCornerShape(14.dp)
         ) {
-            Icon(imageVector = Icons.Default.VolunteerActivism, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = if (isSubmitting) "Enviando..." else "Enviar para ${selectedNgo.name}",
-                style = MaterialTheme.typography.titleMedium
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp, horizontal = 4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.VolunteerActivism,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = if (isSubmitting) "Enviando Doação..." else "Confirmar e Enviar Doação",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (!isSubmitting) {
+                        Text(
+                            text = "Destino: ${selectedNgo.name}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
         }
+
+        Spacer(modifier = Modifier.height(28.dp))
     }
 
     // Modal de Cadastro de Nova ONG Parceira
