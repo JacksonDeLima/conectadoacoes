@@ -1,6 +1,9 @@
 package br.com.unisinos.conectadoacoes.ui
 
 import android.content.Intent
+import android.graphics.Bitmap
+import android.widget.Toast
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -27,6 +31,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import br.com.unisinos.conectadoacoes.data.Donation
 import br.com.unisinos.conectadoacoes.data.Ngo
+import br.com.unisinos.conectadoacoes.util.PdfReportGenerator
+import br.com.unisinos.conectadoacoes.util.QrCodeGenerator
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -105,12 +111,12 @@ fun AccountabilityScreen(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                text = "Prestação de Contas & Balancete",
+                                text = "Prestação de Contas e Balancete Social",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "Auditoria social e conformidade com o MROSC (Lei 13.019)",
+                                text = "Auditoria social em conformidade com o MROSC (Lei Federal 13.019/2014)",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -141,7 +147,7 @@ fun AccountabilityScreen(
                             onDismissRequest = { ngoDropdownExpanded = false }
                         ) {
                             DropdownMenuItem(
-                                text = { Text("🌐 Todas as Entidades da Rede", fontWeight = FontWeight.Bold) },
+                                text = { Text("Todas as Entidades da Rede", fontWeight = FontWeight.Bold) },
                                 onClick = {
                                     selectedNgoId = null
                                     ngoDropdownExpanded = false
@@ -160,35 +166,65 @@ fun AccountabilityScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                    // Botão Exportar Relatório Oficial (WhatsApp / E-mail / Impressão)
-                    Button(
-                        onClick = {
-                            val reportText = buildAccountabilityReportText(
-                                ngoName = selectedNgoName,
-                                total = totalDonations,
-                                pending = pendingCount,
-                                approved = approvedCount,
-                                received = receivedInStockCount,
-                                delivered = deliveredCount,
-                                rejected = rejectedCount,
-                                efficiency = efficiencyRate,
-                                donations = filteredDonations
-                            )
-                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_SUBJECT, "Balancete Social - ConectaDoações")
-                                putExtra(Intent.EXTRA_TEXT, reportText)
-                            }
-                            context.startActivity(Intent.createChooser(shareIntent, "Compartilhar Balancete Social"))
-                        },
+                    // Ações de Exportação Oficial
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(imageVector = Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Exportar / Compartilhar Balancete Social")
+                        // Botão 1: Gerar PDF Nativo Oficial
+                        Button(
+                            onClick = {
+                                val pdfFile = PdfReportGenerator.generateAndOpenPdf(
+                                    context = context,
+                                    ngoName = selectedNgoName,
+                                    donations = filteredDonations
+                                )
+                                if (pdfFile != null) {
+                                    PdfReportGenerator.openPdfFile(context, pdfFile)
+                                    Toast.makeText(context, "Relatório em PDF gerado com sucesso!", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Erro ao gerar arquivo PDF.", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F766E)),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(imageVector = Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Gerar PDF Oficial", style = MaterialTheme.typography.labelMedium)
+                        }
+
+                        // Botão 2: Compartilhar Texto Institucional
+                        OutlinedButton(
+                            onClick = {
+                                val reportText = buildFormalAccountabilityReportText(
+                                    ngoName = selectedNgoName,
+                                    total = totalDonations,
+                                    pending = pendingCount,
+                                    approved = approvedCount,
+                                    received = receivedInStockCount,
+                                    delivered = deliveredCount,
+                                    rejected = rejectedCount,
+                                    efficiency = efficiencyRate,
+                                    donations = filteredDonations
+                                )
+                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_SUBJECT, "Balancete Social - ConectaDoações")
+                                    putExtra(Intent.EXTRA_TEXT, reportText)
+                                }
+                                context.startActivity(Intent.createChooser(shareIntent, "Compartilhar Balancete Social"))
+                            },
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(imageVector = Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Compartilhar Texto", style = MaterialTheme.typography.labelMedium)
+                        }
                     }
                 }
             }
@@ -215,7 +251,7 @@ fun AccountabilityScreen(
                     modifier = Modifier.weight(1f)
                 )
                 MetricKpiCard(
-                    title = "Em Estoque",
+                    title = "Em Estoque Físico",
                     value = (approvedCount + receivedInStockCount).toString(),
                     color = Color(0xFF0284C7),
                     icon = Icons.Default.Inventory,
@@ -255,7 +291,7 @@ fun AccountabilityScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Inventário por Categoria de Bens",
+                        text = "Inventário por Categoria de Materiais",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
                     )
@@ -301,12 +337,12 @@ fun AccountabilityScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Livro de Registro de Doações (Auditoria)",
+                    text = "Livro de Registro e Auditoria",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "${filteredDonations.size} registros",
+                    text = "${filteredDonations.size} registros arquivados",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -323,7 +359,7 @@ fun AccountabilityScreen(
                         .padding(vertical = 16.dp)
                 ) {
                     Text(
-                        text = "Nenhum registro de doação localizado para os filtros selecionados.",
+                        text = "Nenhum registro localizado para os filtros selecionados.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
@@ -341,7 +377,7 @@ fun AccountabilityScreen(
         }
     }
 
-    // Modal do Recibo Digital de Doação
+    // Modal do Recibo Digital de Doação com QR Code
     selectedDonationForReceipt?.let { donation ->
         DigitalReceiptDialog(
             donation = donation,
@@ -445,7 +481,7 @@ fun AuditItemCard(
             )
 
             Text(
-                text = "Doador: ${donation.donorName} (${donation.donorNeighborhood}) • Entidade: ${donation.ngoName}",
+                text = "Doador: ${donation.donorName} (${donation.donorNeighborhood}) | Entidade: ${donation.ngoName}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -477,7 +513,7 @@ fun AuditItemCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Data: ${formatDate(donation.createdAt)}",
+                    text = "Registro: ${formatDate(donation.createdAt)}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -487,9 +523,9 @@ fun AuditItemCard(
                     shape = RoundedCornerShape(8.dp),
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)
                 ) {
-                    Icon(imageVector = Icons.Default.ReceiptLong, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Icon(imageVector = Icons.Default.QrCode, contentDescription = null, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Recibo Digital", style = MaterialTheme.typography.labelSmall)
+                    Text("Recibo e QR Code", style = MaterialTheme.typography.labelSmall)
                 }
             }
         }
@@ -497,7 +533,7 @@ fun AuditItemCard(
 }
 
 /**
- * Diálogo que renderiza o Comprovante/Recibo Digital de Doação
+ * Diálogo do Recibo Digital de Doação com QR Code 2D integrado
  */
 @Composable
 fun DigitalReceiptDialog(
@@ -505,6 +541,9 @@ fun DigitalReceiptDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    val qrBitmap = remember(donation.trackingCode) {
+        QrCodeGenerator.generateQrBitmap(donation.trackingCode, 320)
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -531,19 +570,35 @@ fun DigitalReceiptDialog(
                     .verticalScroll(rememberScrollState())
                     .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
                     .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // QR Code 2D Renderizado
+                Box(
+                    modifier = Modifier
+                        .size(140.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                        .padding(8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        bitmap = qrBitmap.asImageBitmap(),
+                        contentDescription = "QR Code de Auditoria",
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
                 Text(
                     text = "CÓDIGO DE AUDITORIA: #${donation.trackingCode}",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Center
                 )
 
-                Divider()
+                Divider(modifier = Modifier.padding(vertical = 4.dp))
 
                 ReceiptRow(label = "Instituição Beneficiária:", value = donation.ngoName)
                 ReceiptRow(label = "Cidadão Doador:", value = donation.donorName)
@@ -553,7 +608,7 @@ fun DigitalReceiptDialog(
                 ReceiptRow(label = "Data de Registro:", value = formatDate(donation.createdAt))
 
                 if (donation.status == Donation.STATUS_APPROVED || donation.status == Donation.STATUS_RECEIVED || donation.status == Donation.STATUS_DELIVERED) {
-                    Divider()
+                    Divider(modifier = Modifier.padding(vertical = 4.dp))
                     ReceiptRow(label = "Acordo Logístico:", value = donation.logisticsType ?: "Ponto de Coleta")
                     ReceiptRow(label = "Triador Responsável:", value = donation.reviewedBy ?: "Equipe de Triagem")
                 }
@@ -563,19 +618,19 @@ fun DigitalReceiptDialog(
                 }
 
                 if (donation.status == Donation.STATUS_DELIVERED) {
-                    Divider()
+                    Divider(modifier = Modifier.padding(vertical = 4.dp))
                     ReceiptRow(label = "Beneficiário Final:", value = donation.deliveredToBeneficiary ?: "Família Atendida")
                     ReceiptRow(label = "Data da Entrega:", value = formatDate(donation.deliveredAt ?: donation.createdAt))
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceVariant,
                     shape = RoundedCornerShape(6.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "Documento registrado digitalmente pelo ConectaDoações para fins de prestação de contas (MROSC / Lei 13.019).",
+                        text = "Documento registrado digitalmente pela plataforma ConectaDoações para fins de comprovação e prestação de contas (MROSC / Lei 13.019/2014).",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
@@ -587,19 +642,21 @@ fun DigitalReceiptDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val text = "🧾 RECIBO DIGITAL DE DOAÇÃO #${donation.trackingCode}\n\n" +
-                            "Entidade: ${donation.ngoName}\n" +
+                    val formalText = "RECIBO DIGITAL DE DOAÇÃO #${donation.trackingCode}\n" +
+                            "--------------------------------------------------\n" +
+                            "Instituição Beneficiária: ${donation.ngoName}\n" +
                             "Doador: ${donation.donorName} (${donation.donorNeighborhood})\n" +
-                            "Item: ${donation.title} (${donation.category})\n" +
-                            "Status: ${donation.status}\n" +
-                            "Data: ${formatDate(donation.createdAt)}\n\n" +
-                            "ConectaDoações - Transparência e Solidariedade Comunitária."
+                            "Item: ${donation.title} - Categoria: ${donation.category}\n" +
+                            "Status da Cadeia de Custódia: ${donation.status}\n" +
+                            "Data de Entrada: ${formatDate(donation.createdAt)}\n" +
+                            "--------------------------------------------------\n" +
+                            "Plataforma ConectaDoações | Registro Formal de Conformidade Social."
 
                     val intent = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, text)
+                        putExtra(Intent.EXTRA_TEXT, formalText)
                     }
-                    context.startActivity(Intent.createChooser(intent, "Compartilhar Recibo Digital"))
+                    context.startActivity(Intent.createChooser(intent, "Compartilhar Recibo Oficial"))
                 }
             ) {
                 Icon(imageVector = Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -629,9 +686,9 @@ private fun formatDate(timestamp: Long): String {
 }
 
 /**
- * Monta o texto oficial do balancete para compartilhamento com diretoria e conselhos.
+ * Monta o texto oficial do balancete de forma estritamente formal e sóbria (sem emojis).
  */
-private fun buildAccountabilityReportText(
+private fun buildFormalAccountabilityReportText(
     ngoName: String,
     total: Int,
     pending: Int,
@@ -642,25 +699,32 @@ private fun buildAccountabilityReportText(
     efficiency: Int,
     donations: List<Donation>
 ): String {
-    val date = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
+    val date = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())
     val sb = StringBuilder()
-    sb.appendLine("📊 BALANCETE SOCIAL & PRESTAÇÃO DE CONTAS")
-    sb.appendLine("Plataforma ConectaDoações • $date")
-    sb.appendLine("Entidade: $ngoName")
-    sb.appendLine("----------------------------------------")
-    sb.appendLine("• Total de Doações Ofertadas: $total")
-    sb.appendLine("• Em Análise / Pendentes: $pending")
-    sb.appendLine("• Aprovadas / Agendadas: $approved")
-    sb.appendLine("• Recebidas no Estoque Físico: $received")
-    sb.appendLine("• Entregues a Famílias Beneficiárias: $delivered")
-    sb.appendLine("• Incompatíveis / Recusadas: $rejected")
-    sb.appendLine("• Taxa de Eficiência Solidária: $efficiency%")
-    sb.appendLine("----------------------------------------")
-    sb.appendLine("Últimos Registros com Código de Auditoria:")
-    donations.take(5).forEach { d ->
-        sb.appendLine("- #${d.trackingCode} | ${d.title} (${d.category}) -> Status: ${d.status}")
+    sb.appendLine("RELATÓRIO DE PRESTAÇÃO DE CONTAS E BALANCETE SOCIAL")
+    sb.appendLine("Plataforma ConectaDoações - Universidade do Vale do Rio dos Sinos (UNISINOS)")
+    sb.appendLine("Marco Regulatório das Organizações da Sociedade Civil - Lei Federal nº 13.019/2014")
+    sb.appendLine("----------------------------------------------------------------------")
+    sb.appendLine("ENTIDADE BENEFICIÁRIA: $ngoName")
+    sb.appendLine("DATA DE EMISSÃO: $date")
+    sb.appendLine("----------------------------------------------------------------------")
+    sb.appendLine("1. DEMONSTRATIVO CONSOLIDADO DO FLUXO DE BENS:")
+    sb.appendLine("  - Total de Ofertas Registradas: $total")
+    sb.appendLine("  - Ofertas em Triagem Inicial: $pending")
+    sb.appendLine("  - Ofertas Aprovadas com Coleta/Entrega Agendada: $approved")
+    sb.appendLine("  - Itens com Entrada Confirmada no Estoque Físico: $received")
+    sb.appendLine("  - Doações Destinadas e Entregues a Famílias: $delivered")
+    sb.appendLine("  - Ofertas Recusadas por Incompatibilidade Técnica: $rejected")
+    sb.appendLine("  - Índice de Aproveitamento de Doações: $efficiency%")
+    sb.appendLine("----------------------------------------------------------------------")
+    sb.appendLine("2. REGISTROS AUDITADOS RECENTES (AMOSTRA DE CUSTÓDIA):")
+    donations.take(8).forEach { d ->
+        val dataStr = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(d.createdAt))
+        val destStr = d.deliveredToBeneficiary ?: if (d.status == Donation.STATUS_REJECTED) "Recusado" else "Em estoque"
+        sb.appendLine("  - [#${d.trackingCode}] $dataStr | ${d.title} (${d.category}) | Doador: ${d.donorName} | Destinação: $destStr | Status: ${d.status}")
     }
-    sb.appendLine("----------------------------------------")
-    sb.appendLine("Relatório gerado em conformidade com o Marco Regulatório das Organizações da Sociedade Civil (Lei 13.019/2014).")
+    sb.appendLine("----------------------------------------------------------------------")
+    sb.appendLine("Declaração: As informações acima refletem com fidelidade os registros de entrada,")
+    sb.appendLine("triagem e destinação operados pelo sistema ConectaDoações.")
     return sb.toString()
 }

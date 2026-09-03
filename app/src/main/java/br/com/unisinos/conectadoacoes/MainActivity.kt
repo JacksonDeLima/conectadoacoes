@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import br.com.unisinos.conectadoacoes.data.AppDatabase
 import br.com.unisinos.conectadoacoes.data.Donation
 import br.com.unisinos.conectadoacoes.data.Ngo
+import br.com.unisinos.conectadoacoes.data.UrgentNeedEntity
 import br.com.unisinos.conectadoacoes.data.Volunteer
 import br.com.unisinos.conectadoacoes.ui.AccountabilityScreen
 import br.com.unisinos.conectadoacoes.ui.DonationFormScreen
@@ -50,11 +51,13 @@ fun MainAppScreen(database: AppDatabase) {
     val donationDao = remember { database.donationDao() }
     val ngoDao = remember { database.ngoDao() }
     val volunteerDao = remember { database.volunteerDao() }
+    val urgentNeedDao = remember { database.urgentNeedDao() }
 
     // Coletas reativas em tempo real a partir do Room Flow
     val donations by donationDao.getAllDonations().collectAsState(initial = emptyList())
     val ngos by ngoDao.getAllNgos().collectAsState(initial = Ngo.DEFAULT_NGOS)
     val volunteers by volunteerDao.getAllVolunteers().collectAsState(initial = Volunteer.DEFAULT_VOLUNTEERS)
+    val urgentNeeds by urgentNeedDao.getAllActiveNeeds().collectAsState(initial = UrgentNeedEntity.DEFAULT_NEEDS)
 
     // Aba ativa: 0 = Formulário do Doador, 1 = Painel de Triagem da ONG, 2 = Prestação de Contas
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -153,6 +156,7 @@ fun MainAppScreen(database: AppDatabase) {
                 0 -> {
                     DonationFormScreen(
                         ngos = ngos,
+                        urgentNeeds = urgentNeeds,
                         onSaveDonation = { donation ->
                             donationDao.insertDonation(donation)
                         },
@@ -174,6 +178,7 @@ fun MainAppScreen(database: AppDatabase) {
                         donations = donations,
                         ngos = ngos,
                         volunteers = volunteers,
+                        urgentNeeds = urgentNeeds,
                         onApproveWithLogistics = { donation, logisticsType, details, reviewerName ->
                             coroutineScope.launch {
                                 val updated = donation.copy(
@@ -276,6 +281,20 @@ fun MainAppScreen(database: AppDatabase) {
                             ngoDao.insertNgo(newNgo)
                             snackbarHostState.showSnackbar(
                                 message = "Nova ONG ${newNgo.name} cadastrada!",
+                                duration = SnackbarDuration.Short
+                            )
+                        },
+                        onAddNewUrgentNeed = { newNeed ->
+                            urgentNeedDao.insert(newNeed)
+                            snackbarHostState.showSnackbar(
+                                message = "Demanda \"${newNeed.description}\" adicionada à vitrine!",
+                                duration = SnackbarDuration.Short
+                            )
+                        },
+                        onDeleteUrgentNeed = { need ->
+                            urgentNeedDao.delete(need)
+                            snackbarHostState.showSnackbar(
+                                message = "Demanda removida da vitrine.",
                                 duration = SnackbarDuration.Short
                             )
                         }

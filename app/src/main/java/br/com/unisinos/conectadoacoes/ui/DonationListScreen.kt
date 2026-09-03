@@ -2,6 +2,7 @@ package br.com.unisinos.conectadoacoes.ui
 
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -26,8 +27,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import br.com.unisinos.conectadoacoes.data.Donation
 import br.com.unisinos.conectadoacoes.data.Ngo
+import br.com.unisinos.conectadoacoes.data.UrgentNeedEntity
 import br.com.unisinos.conectadoacoes.data.Volunteer
 import br.com.unisinos.conectadoacoes.ui.theme.*
+import br.com.unisinos.conectadoacoes.util.LogisticsRouteHelper
 import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -39,6 +42,7 @@ fun DonationListScreen(
     donations: List<Donation>,
     ngos: List<Ngo>,
     volunteers: List<Volunteer>,
+    urgentNeeds: List<UrgentNeedEntity>,
     onApproveWithLogistics: (Donation, logisticsType: String, details: String, reviewerName: String) -> Unit,
     onRejectWithReason: (Donation, reason: String, reviewerName: String) -> Unit,
     onConfirmReceiptInStock: (Donation, receiverName: String) -> Unit,
@@ -46,8 +50,11 @@ fun DonationListScreen(
     onResetStatus: (Donation) -> Unit,
     onDeleteDonation: (Donation) -> Unit,
     onAddNewVolunteer: suspend (Volunteer) -> Unit,
-    onAddNewNgo: suspend (Ngo) -> Unit
+    onAddNewNgo: suspend (Ngo) -> Unit,
+    onAddNewUrgentNeed: suspend (UrgentNeedEntity) -> Unit,
+    onDeleteUrgentNeed: suspend (UrgentNeedEntity) -> Unit
 ) {
+    val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
     // Filtros de Status (Cadeia de Custódia Completa)
@@ -71,24 +78,47 @@ fun DonationListScreen(
     }
     var volunteerDropdownExpanded by remember { mutableStateOf(false) }
 
-    // Modais
+    // Modais e Diálogos
     var showAddVolunteerDialog by remember { mutableStateOf(false) }
+    var showManageNeedsDialog by remember { mutableStateOf(false) }
+    var showLookupCodeDialog by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+
     var itemToApprove by remember { mutableStateOf<Donation?>(null) }
     var itemToReject by remember { mutableStateOf<Donation?>(null) }
     var itemToDeliver by remember { mutableStateOf<Donation?>(null) }
     var itemForReceiptModal by remember { mutableStateOf<Donation?>(null) }
 
-    val filteredList = remember(donations, selectedFilter, selectedNgoFilterId) {
+    val activeNgo = remember(ngos, selectedNgoFilterId) {
+        if (selectedNgoFilterId == null) ngos.firstOrNull() ?: Ngo.DEFAULT_NGOS.first()
+        else ngos.firstOrNull { it.id == selectedNgoFilterId } ?: ngos.firstOrNull() ?: Ngo.DEFAULT_NGOS.first()
+    }
+
+    val activeNgoName = remember(selectedNgoFilterId, activeNgo) {
+        if (selectedNgoFilterId == null) "Todas as Entidades Parceiras" else activeNgo.name
+    }
+
+    // Filtragem combinada por status, entidade e busca por código de auditoria
+    val filteredList = remember(donations, selectedFilter, selectedNgoFilterId, searchQuery) {
         donations.filter { donation ->
             val matchesStatus = if (selectedFilter == "Todos") true else donation.status.equals(selectedFilter, ignoreCase = true)
             val matchesNgo = if (selectedNgoFilterId == null) true else donation.ngoId == selectedNgoFilterId
-            matchesStatus && matchesNgo
+            val matchesSearch = if (searchQuery.isBlank()) true else {
+                donation.trackingCode.contains(searchQuery, ignoreCase = true) ||
+                        donation.title.contains(searchQuery, ignoreCase = true) ||
+                        donation.donorName.contains(searchQuery, ignoreCase = true)
+            }
+            matchesStatus && matchesNgo && matchesSearch
         }
     }
 
-    val activeNgoName = remember(ngos, selectedNgoFilterId) {
-        if (selectedNgoFilterId == null) "Todas as Entidades Parceiras"
-        else ngos.firstOrNull { it.id == selectedNgoFilterId }?.name ?: "Entidade Parceira"
+    // Itens aprovados que precisam de coleta em domicílio
+    val pendingPickups = remember(donations, selectedNgoFilterId) {
+        donations.filter {
+            it.status == Donation.STATUS_APPROVED &&
+                    it.logisticsType == Donation.LOGISTICS_PICK_UP &&
+                    (selectedNgoFilterId == null || it.ngoId == selectedNgoFilterId)
+        }
     }
 
     Column(
@@ -131,7 +161,7 @@ fun DonationListScreen(
                             onDismissRequest = { ngoFilterDropdownExpanded = false }
                         ) {
                             DropdownMenuItem(
-                                text = { Text("🌐 Todas as Entidades Parceiras", fontWeight = FontWeight.Bold) },
+                                text = { Text("Todas as Entidades Parceiras", fontWeight = FontWeight.Bold) },
                                 onClick = {
                                     selectedNgoFilterId = null
                                     ngoFilterDropdownExpanded = false
@@ -154,11 +184,22 @@ fun DonationListScreen(
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Botão para Gerenciar Vitrine de Demandas da ONG
+                    FilledTonalIconButton(
+                        onClick = { showManageNeedsDialog = true },
+                        modifier = Modifier.size(52.dp),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.Campaign, contentDescription = "Gerenciar Demandas")
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Linha 2: Seletor de Plantonista / Triador Ativo
+                // Linha 2: Seletor de Plantonista / Triador Ativo + Botão Adicionar Voluntário
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -213,7 +254,73 @@ fun DonationListScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                // Linha 3: Barra de Ação Logística Rápida (Rotas Google Maps & Busca por Código de Auditoria)
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Botão de Rotas no Google Maps
+                    OutlinedButton(
+                        onClick = {
+                            if (pendingPickups.isEmpty()) {
+                                Toast.makeText(context, "Não há coletas em domicílio agendadas no momento.", Toast.LENGTH_SHORT).show()
+                            } else {
+                                val stops = pendingPickups.map { "${it.donorNeighborhood}, São Leopoldo - RS" }
+                                LogisticsRouteHelper.openMultiStopRoute(
+                                    context = context,
+                                    destinationAddress = activeNgo.address,
+                                    stops = stops
+                                )
+                            }
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1.2f)
+                    ) {
+                        Icon(imageVector = Icons.Default.DirectionsCar, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Rota de Coletas (${pendingPickups.size})",
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+
+                    // Botão de Busca por Código de Auditoria
+                    OutlinedButton(
+                        onClick = { showLookupCodeDialog = true },
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(imageVector = Icons.Default.Search, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Buscar Código", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+
+                if (searchQuery.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Filtro ativo: \"$searchQuery\"",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(20.dp)) {
+                                Icon(imageVector = Icons.Default.Close, contentDescription = "Limpar busca")
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // Filtros de Status (Cadeia de Custódia)
                 LazyRow(
@@ -274,6 +381,12 @@ fun DonationListScreen(
                         },
                         onOpenDeliverDialog = { itemToDeliver = donation },
                         onOpenReceipt = { itemForReceiptModal = donation },
+                        onOpenNavigation = {
+                            LogisticsRouteHelper.openNavigationToLocation(
+                                context = context,
+                                locationQuery = "${donation.donorNeighborhood}, São Leopoldo - RS"
+                            )
+                        },
                         onReset = { onResetStatus(donation) },
                         onDelete = { onDeleteDonation(donation) }
                     )
@@ -322,11 +435,52 @@ fun DonationListScreen(
         )
     }
 
-    // Modal de Visualização de Recibo Digital
+    // Modal de Visualização de Recibo Digital com QR Code
     itemForReceiptModal?.let { donation ->
         DigitalReceiptDialog(
             donation = donation,
             onDismiss = { itemForReceiptModal = null }
+        )
+    }
+
+    // Modal de Busca por Código de Auditoria
+    if (showLookupCodeDialog) {
+        var tempCode by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showLookupCodeDialog = false },
+            title = { Text("Localizar por Código de Auditoria", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Digite o código impresso ou bipe o número do recibo (ex: CD-4812):",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = tempCode,
+                        onValueChange = { tempCode = it },
+                        label = { Text("Código de Auditoria") },
+                        placeholder = { Text("CD-4812") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        searchQuery = tempCode.trim().replace("#", "")
+                        showLookupCodeDialog = false
+                    }
+                ) {
+                    Text("Filtrar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLookupCodeDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
         )
     }
 
@@ -345,6 +499,32 @@ fun DonationListScreen(
             }
         )
     }
+
+    // Modal de Gerenciamento da Vitrine de Demandas
+    if (showManageNeedsDialog) {
+        ManageNeedsDialog(
+            activeNgo = activeNgo,
+            needs = urgentNeeds.filter { it.ngoId == activeNgo.id },
+            onDismiss = { showManageNeedsDialog = false },
+            onAddNeed = { category, description, level ->
+                coroutineScope.launch {
+                    onAddNewUrgentNeed(
+                        UrgentNeedEntity(
+                            ngoId = activeNgo.id,
+                            category = category,
+                            description = description,
+                            urgencyLevel = level
+                        )
+                    )
+                }
+            },
+            onDeleteNeed = { need ->
+                coroutineScope.launch {
+                    onDeleteUrgentNeed(need)
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -355,6 +535,7 @@ fun DonationCardProfessional(
     onConfirmReceipt: () -> Unit,
     onOpenDeliverDialog: () -> Unit,
     onOpenReceipt: () -> Unit,
+    onOpenNavigation: () -> Unit,
     onReset: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -485,7 +666,7 @@ fun DonationCardProfessional(
                 }
             }
 
-            // Destaques da Cadeia de Custódia (Feedback Operacional)
+            // Destaques da Cadeia de Custódia
             if (donation.status == Donation.STATUS_APPROVED && donation.logisticsType != null) {
                 Spacer(modifier = Modifier.height(10.dp))
                 Surface(
@@ -495,12 +676,28 @@ fun DonationCardProfessional(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(10.dp)) {
-                        Text(
-                            text = "📦 Aprovado: ${donation.logisticsType}",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF15803D)
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Aprovado: ${donation.logisticsType}",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF15803D)
+                            )
+                            if (donation.logisticsType == Donation.LOGISTICS_PICK_UP) {
+                                TextButton(
+                                    onClick = onOpenNavigation,
+                                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Icon(imageVector = Icons.Default.Map, contentDescription = null, modifier = Modifier.size(14.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Ver no Maps", style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                        }
                         if (!donation.logisticsDetails.isNullOrBlank()) {
                             Text(text = donation.logisticsDetails, style = MaterialTheme.typography.bodySmall, color = Color(0xFF166534))
                         }
@@ -516,7 +713,7 @@ fun DonationCardProfessional(
                 ) {
                     Column(modifier = Modifier.padding(10.dp)) {
                         Text(
-                            text = "🏢 Item em Estoque Físico no Galpão",
+                            text = "Item em Estoque Físico no Galpão",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF0369A1)
@@ -538,7 +735,7 @@ fun DonationCardProfessional(
                 ) {
                     Column(modifier = Modifier.padding(10.dp)) {
                         Text(
-                            text = "🤝 Ciclo Completo: Entregue ao Beneficiário",
+                            text = "Ciclo Concluído: Entregue ao Beneficiário",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF15803D)
@@ -595,7 +792,7 @@ fun DonationCardProfessional(
                 }
             }
 
-            // Linha de Ações de Custódia e Triagem
+            // Ações de Custódia e Triagem
             Spacer(modifier = Modifier.height(10.dp))
             Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
             Spacer(modifier = Modifier.height(10.dp))
@@ -639,7 +836,7 @@ fun DonationCardProfessional(
                         ) {
                             Icon(imageVector = Icons.Default.Inventory, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Confirmar Entrada no Estoque")
+                            Text("Entrada Estoque")
                         }
                     }
 
@@ -652,7 +849,7 @@ fun DonationCardProfessional(
                         ) {
                             Icon(imageVector = Icons.Default.VolunteerActivism, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Entregar a Beneficiário")
+                            Text("Entregar a Família")
                         }
                     }
 
@@ -669,14 +866,14 @@ fun DonationCardProfessional(
                     }
                 }
 
-                // Botão Recibo Digital
+                // Botão Recibo e QR Code
                 FilledTonalIconButton(
                     onClick = onOpenReceipt,
                     modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.ReceiptLong,
-                        contentDescription = "Recibo Digital",
+                        imageVector = Icons.Default.QrCode,
+                        contentDescription = "Recibo e QR Code",
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -694,6 +891,124 @@ fun DonationCardProfessional(
             }
         }
     }
+}
+
+/**
+ * Diálogo para a ONG gerenciar suas carências urgentes (adicionar e remover demandas da vitrine)
+ */
+@Composable
+fun ManageNeedsDialog(
+    activeNgo: Ngo,
+    needs: List<UrgentNeedEntity>,
+    onDismiss: () -> Unit,
+    onAddNeed: (category: String, description: String, level: String) -> Unit,
+    onDeleteNeed: (UrgentNeedEntity) -> Unit
+) {
+    var newCategory by remember { mutableStateOf(Donation.CATEGORIES.first()) }
+    var newDescription by remember { mutableStateOf("") }
+    var newLevel by remember { mutableStateOf("Urgente") }
+    val levelOptions = listOf("Urgente", "Necessário", "Estoque Cheio")
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("Demandas Urgentes: ${activeNgo.name}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 450.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "Cadastre itens prioritários para atualizar a vitrine exibida aos doadores:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                OutlinedTextField(
+                    value = newDescription,
+                    onValueChange = { newDescription = it },
+                    label = { Text("Item / Descrição da Necessidade *") },
+                    placeholder = { Text("Ex: Leite em pó integral, Cobertores") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    levelOptions.forEach { level ->
+                        FilterChip(
+                            selected = newLevel == level,
+                            onClick = { newLevel = level },
+                            label = { Text(level, style = MaterialTheme.typography.labelSmall) }
+                        )
+                    }
+                }
+
+                Button(
+                    onClick = {
+                        if (newDescription.isNotBlank()) {
+                            onAddNeed(newCategory, newDescription.trim(), newLevel)
+                            newDescription = ""
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Adicionar à Vitrine")
+                }
+
+                Divider(modifier = Modifier.padding(vertical = 4.dp))
+
+                Text(
+                    text = "Demandas Ativas na Vitrine (${needs.size}):",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                if (needs.isEmpty()) {
+                    Text(
+                        text = "Nenhuma demanda personalizada cadastrada para esta entidade.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    needs.forEach { need ->
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = need.description, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                                    Text(text = "${need.category} • Nível: ${need.urgencyLevel}", style = MaterialTheme.typography.labelSmall)
+                                }
+                                IconButton(onClick = { onDeleteNeed(need) }, modifier = Modifier.size(28.dp)) {
+                                    Icon(imageVector = Icons.Default.Delete, contentDescription = "Excluir", tint = MaterialTheme.colorScheme.error)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = onDismiss) {
+                Text("Concluir")
+            }
+        }
+    )
 }
 
 /**
@@ -717,7 +1032,7 @@ fun DeliverToBeneficiaryDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    text = "Fechamento de ciclo do item \"${donation.title}\":",
+                    text = "Fechamento de custódia do item \"${donation.title}\":",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -768,7 +1083,7 @@ fun DeliverToBeneficiaryDialog(
 }
 
 /**
- * Diálogo de Aprovação com Acordo Logístico dinâmico baseado na ONG destinatária
+ * Diálogo de Aprovação com Acordo Logístico
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

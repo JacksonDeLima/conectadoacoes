@@ -39,6 +39,7 @@ import java.io.FileOutputStream
 @Composable
 fun DonationFormScreen(
     ngos: List<Ngo>,
+    urgentNeeds: List<br.com.unisinos.conectadoacoes.data.UrgentNeedEntity> = emptyList(),
     onSaveDonation: suspend (Donation) -> Unit,
     onAddNewNgo: suspend (Ngo) -> Unit,
     onSuccessNotification: (String) -> Unit
@@ -260,11 +261,27 @@ fun DonationFormScreen(
                 )
             }
 
+            val displayedNeeds = remember(urgentNeeds, selectedNgo.id) {
+                val ngoNeeds = urgentNeeds.filter { it.ngoId == selectedNgo.id }
+                if (ngoNeeds.isNotEmpty()) {
+                    ngoNeeds.map { need ->
+                        val level = when (need.urgencyLevel.lowercase()) {
+                            "alta", "urgente" -> UrgencyLevel.HIGH
+                            "estoque cheio", "baixa" -> UrgencyLevel.LOW
+                            else -> UrgencyLevel.MEDIUM
+                        }
+                        br.com.unisinos.conectadoacoes.data.UrgentNeed(need.category, need.description, level)
+                    }
+                } else {
+                    Donation.URGENT_NEEDS
+                }
+            }
+
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                items(Donation.URGENT_NEEDS) { need ->
+                items(displayedNeeds) { need ->
                     val (badgeBg, badgeText) = when (need.level) {
                         UrgencyLevel.HIGH -> Pair(Color(0xFFFEE2E2), Color(0xFFDC2626))
                         UrgencyLevel.MEDIUM -> Pair(Color(0xFFFEF3C7), Color(0xFFD97706))

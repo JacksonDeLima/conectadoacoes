@@ -11,11 +11,11 @@ import kotlinx.coroutines.launch
 
 /**
  * Banco de dados principal do aplicativo utilizando Room sobre SQLite nativo.
- * Version 3 com suporte a plataforma multientidades e gestão de equipe de voluntários.
+ * Versão 5 com suporte a multi-ONGs, voluntários, cadeia de custódia e vitrine de carências dinâmicas.
  */
 @Database(
-    entities = [Donation::class, Ngo::class, Volunteer::class],
-    version = 4,
+    entities = [Donation::class, Ngo::class, Volunteer::class, UrgentNeedEntity::class],
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -23,6 +23,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun donationDao(): DonationDao
     abstract fun ngoDao(): NgoDao
     abstract fun volunteerDao(): VolunteerDao
+    abstract fun urgentNeedDao(): UrgentNeedDao
 
     companion object {
         @Volatile
@@ -39,11 +40,11 @@ abstract class AppDatabase : RoomDatabase() {
                     .addCallback(object : Callback() {
                         override fun onCreate(db: SupportSQLiteDatabase) {
                             super.onCreate(db)
-                            // Preenche o banco com dados iniciais de ONGs e Voluntários
                             CoroutineScope(Dispatchers.IO).launch {
                                 INSTANCE?.let { database ->
                                     database.ngoDao().insertAll(Ngo.DEFAULT_NGOS)
                                     database.volunteerDao().insertAll(Volunteer.DEFAULT_VOLUNTEERS)
+                                    database.urgentNeedDao().insertAll(UrgentNeedEntity.DEFAULT_NEEDS)
                                 }
                             }
                         }
@@ -51,7 +52,7 @@ abstract class AppDatabase : RoomDatabase() {
                     .build()
                 INSTANCE = instance
 
-                // Garantia adicional de seeding caso o banco já exista mas esteja vazio
+                // Garantia adicional de seeding caso o banco já exista
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
                         if (instance.ngoDao().getNgoCount() == 0) {
@@ -59,6 +60,9 @@ abstract class AppDatabase : RoomDatabase() {
                         }
                         if (instance.volunteerDao().getVolunteerCount() == 0) {
                             instance.volunteerDao().insertAll(Volunteer.DEFAULT_VOLUNTEERS)
+                        }
+                        if (instance.urgentNeedDao().getCount() == 0) {
+                            instance.urgentNeedDao().insertAll(UrgentNeedEntity.DEFAULT_NEEDS)
                         }
                     } catch (e: Exception) {
                         e.printStackTrace()
