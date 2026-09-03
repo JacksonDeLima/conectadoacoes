@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.VolunteerActivism
 import androidx.compose.material3.*
@@ -17,6 +18,7 @@ import br.com.unisinos.conectadoacoes.data.AppDatabase
 import br.com.unisinos.conectadoacoes.data.Donation
 import br.com.unisinos.conectadoacoes.data.Ngo
 import br.com.unisinos.conectadoacoes.data.Volunteer
+import br.com.unisinos.conectadoacoes.ui.AccountabilityScreen
 import br.com.unisinos.conectadoacoes.ui.DonationFormScreen
 import br.com.unisinos.conectadoacoes.ui.DonationListScreen
 import br.com.unisinos.conectadoacoes.ui.theme.ConectaDoacoesTheme
@@ -54,7 +56,7 @@ fun MainAppScreen(database: AppDatabase) {
     val ngos by ngoDao.getAllNgos().collectAsState(initial = Ngo.DEFAULT_NGOS)
     val volunteers by volunteerDao.getAllVolunteers().collectAsState(initial = Volunteer.DEFAULT_VOLUNTEERS)
 
-    // Aba ativa: 0 = Formulário do Doador, 1 = Painel de Triagem da ONG
+    // Aba ativa: 0 = Formulário do Doador, 1 = Painel de Triagem da ONG, 2 = Prestação de Contas
     var selectedTab by remember { mutableIntStateOf(0) }
 
     val pendingCount = remember(donations) {
@@ -73,7 +75,11 @@ fun MainAppScreen(database: AppDatabase) {
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = if (selectedTab == 0) "Visão do Doador • Rede Multientidades" else "Visão da ONG • Triagem & Equipe",
+                            text = when (selectedTab) {
+                                0 -> "Visão do Doador • Rede Multientidades"
+                                1 -> "Visão da ONG • Triagem & Cadeia de Custódia"
+                                else -> "Prestação de Contas • Balancete Social & MROSC"
+                            },
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
                         )
@@ -122,6 +128,18 @@ fun MainAppScreen(database: AppDatabase) {
                         }
                     },
                     label = { Text("Triagem ONG") }
+                )
+
+                NavigationBarItem(
+                    selected = selectedTab == 2,
+                    onClick = { selectedTab = 2 },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.Assessment,
+                            contentDescription = "Prestação de Contas"
+                        )
+                    },
+                    label = { Text("Prestação de Contas") }
                 )
             }
         }
@@ -187,6 +205,35 @@ fun MainAppScreen(database: AppDatabase) {
                                 )
                             }
                         },
+                        onConfirmReceiptInStock = { donation, receiverName ->
+                            coroutineScope.launch {
+                                val updated = donation.copy(
+                                    status = Donation.STATUS_RECEIVED,
+                                    receivedAt = System.currentTimeMillis(),
+                                    receivedBy = receiverName
+                                )
+                                donationDao.updateDonation(updated)
+                                snackbarHostState.showSnackbar(
+                                    message = "Item #${donation.trackingCode} recebido fisicamente no estoque!",
+                                    duration = SnackbarDuration.Short
+                                )
+                            }
+                        },
+                        onDeliverToBeneficiary = { donation, beneficiaryName, notes ->
+                            coroutineScope.launch {
+                                val updated = donation.copy(
+                                    status = Donation.STATUS_DELIVERED,
+                                    deliveredAt = System.currentTimeMillis(),
+                                    deliveredToBeneficiary = beneficiaryName,
+                                    beneficiaryNotes = notes
+                                )
+                                donationDao.updateDonation(updated)
+                                snackbarHostState.showSnackbar(
+                                    message = "Entrega ao beneficiário concluída com sucesso!",
+                                    duration = SnackbarDuration.Short
+                                )
+                            }
+                        },
                         onResetStatus = { donation ->
                             coroutineScope.launch {
                                 val updated = donation.copy(
@@ -195,7 +242,12 @@ fun MainAppScreen(database: AppDatabase) {
                                     logisticsType = null,
                                     logisticsDetails = null,
                                     reviewedBy = null,
-                                    reviewedAt = null
+                                    reviewedAt = null,
+                                    receivedAt = null,
+                                    receivedBy = null,
+                                    deliveredAt = null,
+                                    deliveredToBeneficiary = null,
+                                    beneficiaryNotes = null
                                 )
                                 donationDao.updateDonation(updated)
                                 snackbarHostState.showSnackbar(
@@ -227,6 +279,12 @@ fun MainAppScreen(database: AppDatabase) {
                                 duration = SnackbarDuration.Short
                             )
                         }
+                    )
+                }
+                2 -> {
+                    AccountabilityScreen(
+                        donations = donations,
+                        ngos = ngos
                     )
                 }
             }

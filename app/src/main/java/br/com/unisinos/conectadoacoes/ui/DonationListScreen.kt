@@ -8,10 +8,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -22,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -42,6 +41,8 @@ fun DonationListScreen(
     volunteers: List<Volunteer>,
     onApproveWithLogistics: (Donation, logisticsType: String, details: String, reviewerName: String) -> Unit,
     onRejectWithReason: (Donation, reason: String, reviewerName: String) -> Unit,
+    onConfirmReceiptInStock: (Donation, receiverName: String) -> Unit,
+    onDeliverToBeneficiary: (Donation, beneficiaryName: String, notes: String) -> Unit,
     onResetStatus: (Donation) -> Unit,
     onDeleteDonation: (Donation) -> Unit,
     onAddNewVolunteer: suspend (Volunteer) -> Unit,
@@ -49,12 +50,19 @@ fun DonationListScreen(
 ) {
     val coroutineScope = rememberCoroutineScope()
 
-    // Filtro por Status
+    // Filtros de Status (Cadeia de Custódia Completa)
     var selectedFilter by remember { mutableStateOf("Todos") }
-    val filterOptions = listOf("Todos", Donation.STATUS_PENDING, Donation.STATUS_APPROVED, Donation.STATUS_REJECTED)
+    val filterOptions = listOf(
+        "Todos",
+        Donation.STATUS_PENDING,
+        Donation.STATUS_APPROVED,
+        Donation.STATUS_RECEIVED,
+        Donation.STATUS_DELIVERED,
+        Donation.STATUS_REJECTED
+    )
 
-    // Filtro por Entidade Ativa (Todas ou ONG específica)
-    var selectedNgoFilterId by remember { mutableStateOf<Long?>(null) } // null = todas
+    // Filtro por Entidade Ativa
+    var selectedNgoFilterId by remember { mutableStateOf<Long?>(null) }
     var ngoFilterDropdownExpanded by remember { mutableStateOf(false) }
 
     // Plantonista / Triador Ativo da Sessão
@@ -67,6 +75,8 @@ fun DonationListScreen(
     var showAddVolunteerDialog by remember { mutableStateOf(false) }
     var itemToApprove by remember { mutableStateOf<Donation?>(null) }
     var itemToReject by remember { mutableStateOf<Donation?>(null) }
+    var itemToDeliver by remember { mutableStateOf<Donation?>(null) }
+    var itemForReceiptModal by remember { mutableStateOf<Donation?>(null) }
 
     val filteredList = remember(donations, selectedFilter, selectedNgoFilterId) {
         donations.filter { donation ->
@@ -205,7 +215,7 @@ fun DonationListScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Filtros de Status
+                // Filtros de Status (Cadeia de Custódia)
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -259,6 +269,11 @@ fun DonationListScreen(
                         donation = donation,
                         onOpenApproveDialog = { itemToApprove = donation },
                         onOpenRejectDialog = { itemToReject = donation },
+                        onConfirmReceipt = {
+                            onConfirmReceiptInStock(donation, "${activeVolunteer.name} (${activeVolunteer.role})")
+                        },
+                        onOpenDeliverDialog = { itemToDeliver = donation },
+                        onOpenReceipt = { itemForReceiptModal = donation },
                         onReset = { onResetStatus(donation) },
                         onDelete = { onDeleteDonation(donation) }
                     )
@@ -295,6 +310,26 @@ fun DonationListScreen(
         )
     }
 
+    // Modal de Registro de Entrega ao Beneficiário
+    itemToDeliver?.let { donation ->
+        DeliverToBeneficiaryDialog(
+            donation = donation,
+            onDismiss = { itemToDeliver = null },
+            onConfirm = { beneficiaryName, notes ->
+                onDeliverToBeneficiary(donation, beneficiaryName, notes)
+                itemToDeliver = null
+            }
+        )
+    }
+
+    // Modal de Visualização de Recibo Digital
+    itemForReceiptModal?.let { donation ->
+        DigitalReceiptDialog(
+            donation = donation,
+            onDismiss = { itemForReceiptModal = null }
+        )
+    }
+
     // Modal para Cadastrar Novo Voluntário
     if (showAddVolunteerDialog) {
         AddVolunteerDialog(
@@ -317,6 +352,9 @@ fun DonationCardProfessional(
     donation: Donation,
     onOpenApproveDialog: () -> Unit,
     onOpenRejectDialog: () -> Unit,
+    onConfirmReceipt: () -> Unit,
+    onOpenDeliverDialog: () -> Unit,
+    onOpenReceipt: () -> Unit,
     onReset: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -332,25 +370,39 @@ fun DonationCardProfessional(
             .clickable { expanded = !expanded }
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Linha Superior: Categoria, Entidade Destino e Status
+            // Linha Superior: Código de Rastreio, Categoria e Status
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Surface(
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text(
-                        text = "${donation.category} • ${donation.ngoName}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text(
+                            text = "#${donation.trackingCode}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Surface(
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text(
+                            text = donation.category,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
 
                 StatusBadge(status = donation.status)
@@ -358,7 +410,7 @@ fun DonationCardProfessional(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Conteúdo: Foto + Informações
+            // Foto + Informações Principais
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -415,6 +467,13 @@ fun DonationCardProfessional(
                         )
                     }
 
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Entidade: ${donation.ngoName}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = donation.description,
@@ -426,9 +485,9 @@ fun DonationCardProfessional(
                 }
             }
 
-            // Seção de Feedback da Decisão (Quando Aprovado ou Recusado)
+            // Destaques da Cadeia de Custódia (Feedback Operacional)
             if (donation.status == Donation.STATUS_APPROVED && donation.logisticsType != null) {
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 Surface(
                     color = Color(0xFFF0FDF4),
                     shape = RoundedCornerShape(10.dp),
@@ -436,39 +495,64 @@ fun DonationCardProfessional(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(10.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = if (donation.logisticsType == Donation.LOGISTICS_PICK_UP) Icons.Default.LocalShipping else Icons.Default.Storefront,
-                                contentDescription = null,
-                                tint = Color(0xFF16A34A),
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = donation.logisticsType,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF15803D)
-                            )
-                        }
-                        if (!donation.logisticsDetails.isNullOrBlank()) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = donation.logisticsDetails,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFF166534)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Aprovado por: ${donation.reviewedBy ?: "Equipe da ONG"} • ${formatTimestamp(donation.reviewedAt ?: donation.createdAt)}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF15803D).copy(alpha = 0.8f)
+                            text = "📦 Aprovado: ${donation.logisticsType}",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF15803D)
+                        )
+                        if (!donation.logisticsDetails.isNullOrBlank()) {
+                            Text(text = donation.logisticsDetails, style = MaterialTheme.typography.bodySmall, color = Color(0xFF166534))
+                        }
+                    }
+                }
+            } else if (donation.status == Donation.STATUS_RECEIVED) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Surface(
+                    color = Color(0xFFF0F9FF),
+                    shape = RoundedCornerShape(10.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFBAE6FD)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Text(
+                            text = "🏢 Item em Estoque Físico no Galpão",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0369A1)
+                        )
+                        Text(
+                            text = "Conferido por: ${donation.receivedBy ?: "Voluntário"} em ${formatTimestamp(donation.receivedAt ?: donation.createdAt)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF0C4A6E)
+                        )
+                    }
+                }
+            } else if (donation.status == Donation.STATUS_DELIVERED) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Surface(
+                    color = Color(0xFFF0FDF4),
+                    shape = RoundedCornerShape(10.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF86EFAC)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Text(
+                            text = "🤝 Ciclo Completo: Entregue ao Beneficiário",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF15803D)
+                        )
+                        Text(
+                            text = "Destinado a: ${donation.deliveredToBeneficiary ?: "Família Atendida"}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF166534),
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
             } else if (donation.status == Donation.STATUS_REJECTED && !donation.rejectionReason.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 Surface(
                     color = Color(0xFFFEF2F2),
                     shape = RoundedCornerShape(10.dp),
@@ -476,40 +560,20 @@ fun DonationCardProfessional(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(10.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Info,
-                                contentDescription = null,
-                                tint = Color(0xFFDC2626),
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Motivo da Recusa (Feedback Construtivo):",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF991B1B)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = donation.rejectionReason,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF7F1D1D)
+                            text = "Motivo da Recusa (Feedback Construtivo):",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF991B1B)
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Triado por: ${donation.reviewedBy ?: "Equipe da ONG"} • ${formatTimestamp(donation.reviewedAt ?: donation.createdAt)}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF991B1B).copy(alpha = 0.8f)
-                        )
+                        Text(text = donation.rejectionReason, style = MaterialTheme.typography.bodySmall, color = Color(0xFF7F1D1D))
                     }
                 }
             }
 
-            // Botão de Contato WhatsApp (Se informado pelo doador)
+            // WhatsApp do Doador
             if (donation.donorPhone.isNotBlank()) {
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
@@ -518,17 +582,12 @@ fun DonationCardProfessional(
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/55$cleanNumber"))
                             context.startActivity(intent)
                         }
-                        .padding(vertical = 4.dp)
+                        .padding(vertical = 2.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Phone,
-                        contentDescription = "Contato WhatsApp",
-                        tint = Color(0xFF0D9488),
-                        modifier = Modifier.size(16.dp)
-                    )
+                    Icon(imageVector = Icons.Default.Phone, contentDescription = null, tint = Color(0xFF0D9488), modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Contato do Doador: ${donation.donorPhone}",
+                        text = "WhatsApp: ${donation.donorPhone}",
                         style = MaterialTheme.typography.labelMedium,
                         color = Color(0xFF0D9488),
                         fontWeight = FontWeight.SemiBold
@@ -536,47 +595,90 @@ fun DonationCardProfessional(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            // Linha de Ações de Custódia e Triagem
+            Spacer(modifier = Modifier.height(10.dp))
             Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (donation.status == Donation.STATUS_PENDING) {
-                    Button(
-                        onClick = onOpenApproveDialog,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Aprovar")
+                when (donation.status) {
+                    Donation.STATUS_PENDING -> {
+                        Button(
+                            onClick = onOpenApproveDialog,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Aprovar")
+                        }
+
+                        Button(
+                            onClick = onOpenRejectDialog,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(imageVector = Icons.Default.Close, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Recusar")
+                        }
                     }
 
-                    Button(
-                        onClick = onOpenRejectDialog,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(imageVector = Icons.Default.Close, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Recusar")
+                    Donation.STATUS_APPROVED -> {
+                        Button(
+                            onClick = onConfirmReceipt,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(imageVector = Icons.Default.Inventory, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Confirmar Entrada no Estoque")
+                        }
                     }
-                } else {
-                    OutlinedButton(
-                        onClick = onReset,
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Reavaliar Item")
+
+                    Donation.STATUS_RECEIVED -> {
+                        Button(
+                            onClick = onOpenDeliverDialog,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(imageVector = Icons.Default.VolunteerActivism, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Entregar a Beneficiário")
+                        }
                     }
+
+                    else -> {
+                        OutlinedButton(
+                            onClick = onReset,
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Reavaliar")
+                        }
+                    }
+                }
+
+                // Botão Recibo Digital
+                FilledTonalIconButton(
+                    onClick = onOpenReceipt,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ReceiptLong,
+                        contentDescription = "Recibo Digital",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                 }
 
                 IconButton(
@@ -592,6 +694,77 @@ fun DonationCardProfessional(
             }
         }
     }
+}
+
+/**
+ * Diálogo para registrar a destinação final (entrega à família acolhida)
+ */
+@Composable
+fun DeliverToBeneficiaryDialog(
+    donation: Donation,
+    onDismiss: () -> Unit,
+    onConfirm: (beneficiaryName: String, notes: String) -> Unit
+) {
+    var beneficiaryName by remember { mutableStateOf("") }
+    var notes by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("Registrar Entrega ao Beneficiário", fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = "Fechamento de ciclo do item \"${donation.title}\":",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                OutlinedTextField(
+                    value = beneficiaryName,
+                    onValueChange = { beneficiaryName = it; error = null },
+                    label = { Text("Família ou Indivíduo Atendido *") },
+                    placeholder = { Text("Ex: Família dos Santos (4 pessoas) - Bairro Feitoria") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = notes,
+                    onValueChange = { notes = it },
+                    label = { Text("Observações Sociais / Encaminhamento") },
+                    placeholder = { Text("Ex: Atendimento via encaminhamento do CRAS Centro.") },
+                    minLines = 2,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                if (error != null) {
+                    Text(text = error!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (beneficiaryName.isBlank()) {
+                        error = "Informe a identificação da família acolhida."
+                        return@Button
+                    }
+                    onConfirm(beneficiaryName.trim(), notes.trim())
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A))
+            ) {
+                Text("Confirmar Entrega")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
 }
 
 /**
@@ -901,6 +1074,8 @@ fun AddVolunteerDialog(
 fun StatusBadge(status: String) {
     val (bgColor, textColor, icon) = when (status) {
         Donation.STATUS_APPROVED -> Triple(StatusApprovedBg, StatusApprovedText, Icons.Default.CheckCircle)
+        Donation.STATUS_RECEIVED -> Triple(Color(0xFFE0F2FE), Color(0xFF0369A1), Icons.Default.Inventory)
+        Donation.STATUS_DELIVERED -> Triple(Color(0xFFDCFCE7), Color(0xFF15803D), Icons.Default.Verified)
         Donation.STATUS_REJECTED -> Triple(StatusRejectedBg, StatusRejectedText, Icons.Default.Cancel)
         else -> Triple(StatusPendingBg, StatusPendingText, Icons.Default.AccessTime)
     }
@@ -965,7 +1140,7 @@ fun EmptyTriageState(filter: String) {
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "As doações enviadas pelos cidadãos aparecerão aqui para triagem visual e agendamento da equipe.",
+            text = "As doações cadastradas pelos cidadãos aparecerão aqui para triagem visual, conferência de estoque e entrega final.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
