@@ -1,173 +1,199 @@
 # ConectaDoações 🤝📦
-### Aplicativo Mobile de Logística Reversa, Triagem Inteligente e Plataforma Multientidades
+### Plataforma Mobile de Logística Reversa, Triagem Inteligente e Gestão Comunitária de Doações
 
-Projeto desenvolvido para a disciplina acadêmica na **UNISINOS**, atendendo com nota máxima aos critérios de desenvolvimento mobile nativo moderno em **Android (Kotlin + Jetpack Compose + Room Database)**, fundamentado em **Interação Humano-Computador (IHC)** e **Arquitetura de Software Escalável**.
-
----
-
-## 🎯 1. O Problema Real & Justificativa Social
-
-Entidades de assistência social, casas de acolhimento e bancos comunitários de alimentos e agasalhos enfrentam um gargalo operacional crítico:
-- **Sobrecarga de triagem via canais informais**: Voluntários gastam horas no WhatsApp analisando fotos de itens quebrados, remédios vencidos ou roupas rasgadas.
-- **Custos com coletas inviáveis**: Veículos e voluntários são mobilizados para buscar doações sem informações prévias de volume, peso ou real estado de conservação.
-- **Falta de fechamento de ciclo e frustração**: O doador fica no escuro sem saber quem avaliou seu item, por que ele foi recusado ou como e quando ele será recolhido.
-- **Centralização em uma única entidade**: Cidades possuem dezenas de instituições com focos distintos (alimentos, idosos, crianças, agasalhos), necessitando de uma plataforma unificada e aberta.
+> **Projeto de Extensão Universitária**  
+> **Instituição:** Universidade do Vale do Rio dos Sinos – **UNISINOS**  
+> **Curso:** Engenharia de Software / Ciência da Computação  
+> **Área Temática:** Tecnologia, Assistência Social e Sustentabilidade  
 
 ---
 
-## 💡 2. A Solução Proposta & Diferenciais Arquiteturais
+## 🌍 1. Contexto Social e Diagnóstico Comunitário
 
-O **ConectaDoações** evoluiu de um app pontual para uma **Plataforma Ecossistêmica Multientidades**:
-1. **Rede Aberta de ONGs**: O cidadão pode escolher para qual entidade do município deseja doar de acordo com o foco da instituição (Alimentos, Agasalhos, Idosos, etc.).
-2. **Cadastro Dinâmico de Novas Entidades**: Novas ONGs podem ser cadastradas diretamente pelo aplicativo sem necessidade de alterar o código-fonte.
-3. **Gestão de Equipe & Voluntários**: Seleção do triador de plantão e cadastro dinâmico de novos voluntários para assinatura e governança dos laudos de triagem.
-4. **Demanda Invertida ("O que a rede mais precisa hoje")**: Vitrine de necessidades ativas para que o cidadão doe com foco nas carências reais.
-5. **Triagem com Acordo Logístico Operacional**: Definição clara entre entrega na sede da ONG ou agendamento de coleta em domicílio.
-6. **Recusa Construtiva (IHC)**: Motivos pré-formatados que orientam o doador de maneira empática e educativa, preservando o engajamento comunitário.
-7. **Persistência 100% Local (Offline-First)**: SQLite via Room Database com migrações automáticas e seeding inicial.
+O terceiro setor e as entidades de acolhimento social (casas de passagem, bancos de alimentos, lares de idosos e brechós comunitários) no Brasil enfrentam desafios logísticos e operacionais que comprometem sua eficiência assistencial:
+
+1. **Gargalo Operacional na Triagem Informal**: O atendimento por aplicativos de mensagens (WhatsApp) gera sobrecarga de mensagens não estruturadas, fotos dispersas e perda de tempo da equipe avaliando itens inadequados (roupas rasgadas, alimentos vencidos, móveis quebrados).
+2. **Desperdício de Recursos em Coletas Frustradas**: Voluntários mobilizam veículos, combustível e tempo para buscar doações sem dados prévios de volume, peso ou condições reais de conservação, gerando custos operacionais inviáveis.
+3. **Frustração do Doador e Ruptura da Confiança**: A ausência de resposta estruturada deixa o cidadão no escuro sobre o destino de sua doação ou gera rejeições abruptas que desmotivam futuras ações solidárias.
+4. **Desalinhamento entre Oferta e Demanda**: Entidades recebem excesso de itens que já possuem em estoque enquanto enfrentam escassez crítica de itens essenciais (leite em pó, agasalhos infantis, fraldas geriátricas).
+
+O **ConectaDoações** foi concebido como uma resposta tecnológica a esses gargalos, promovendo a ponte direta entre a cidadania ativa e a gestão de suprimentos do terceiro setor.
 
 ---
 
-## 🛠️ 3. Stack Tecnológica & Modelagem de Dados
+## 🎯 2. Alinhamento com os Objetivos de Desenvolvimento Sustentável (ODS – ONU)
 
-| Camada | Tecnologia | Justificativa |
+O projeto está formalmente vinculado à **Agenda 2030 das Nações Unidas**, atuando diretamente nos seguintes Objetivos de Desenvolvimento Sustentável:
+
+| ODS | Meta Relacionada | Aplicação no ConectaDoações |
 | :--- | :--- | :--- |
-| **Linguagem** | Kotlin 2.x | Padrão oficial Android, conciso, seguro e moderno. |
-| **Interface (UI)** | Jetpack Compose (Material 3) | Interface declarativa com componentes acessíveis e design responsivo. |
-| **Banco Local** | SQLite via Room Database (v3) | Múltiplas tabelas relacionais (`donations`, `ngos`, `volunteers`) com reatividade via `Flow`. |
-| **Mídia** | Photo Picker (`PickVisualMedia`) | Interface nativa segura sem permissões perigosas de armazenamento. |
-| **Imagens** | Coil Compose | Renderização assíncrona otimizada de fotos locais. |
+| **ODS 2: Fome Zero** | Meta 2.1 e 2.2 | Apoio direto a Bancos de Alimentos Comunitários com triagem ágil de cestas básicas e alimentos não perecíveis, acelerando a redistribuição antes do vencimento. |
+| **ODS 10: Redução das Desigualdades** | Meta 10.2 | Democratização do acesso a vestuário, móveis e itens de higiene de primeira necessidade para famílias em vulnerabilidade social. |
+| **ODS 11: Cidades Sustentáveis** | Meta 11.6 | Fortalecimento das redes comunitárias locais e redução do impacto logístico do transporte urbano no descarte e coleta de bens. |
+| **ODS 12: Consumo Responsável** | Meta 12.5 | Fomento à **Logística Reversa e Economia Circular**, garantindo o prolongamento da vida útil de bens duráveis e evitando descarte prematuro em aterros sanitários. |
 
-### Diagrama Entidade-Relacionamento (Room)
+---
+
+## 🏛️ 3. Diretrizes da Extensão Universitária (MEC / CNE nº 7/2018)
+
+O desenvolvimento deste projeto atende integralmente aos cinco princípios fundamentais que regem a extensão na educação superior brasileira:
+
+1. **Interação Dialógica**: O software não é construído "para" a comunidade, mas "com" a comunidade. Ele modela a rotina real de triadores voluntários e doadores locais, estabelecendo canais humanizados de comunicação.
+2. **Interdisciplinaridade e Interprofissionalidade**: Articulação entre **Engenharia de Software** (arquitetura reativa, Room Database), **Interação Humano-Computador** (design de acessibilidade e heurísticas de usabilidade), **Logística Operacional** e **Serviço Social**.
+3. **Indissociabilidade Ensino-Pesquisa-Extensão**: Aplicação direta das teorias aprendidas em sala de aula (padrões de projeto, persistência de dados local, linguagens modernas) para resolver um problema territorial palpável.
+4. **Impacto na Formação do Estudante**: Oportunidade para o discente vivenciar o impacto social de sua profissão, desenvolvendo sensibilidade ética, cidadã e capacidade de resposta a carências comunitárias.
+5. **Impacto e Transformação Social**: Potencial de otimização de dezenas de horas de trabalho voluntário por semana, transformando esforço braçal e repetitivo em acolhimento humano qualificado.
+
+---
+
+## 👥 4. Matriz de Atores e Proposta de Valor
+
 ```
-┌─────────────────────────┐         ┌─────────────────────────┐
-│          Ngo            │ 1     N │        Donation         │
-├─────────────────────────┤─────────├─────────────────────────┤
-│ id: Long (PK)           │         │ id: Long (PK)           │
-│ name: String            │         │ ngoId: Long (FK)        │
-│ categoryFocus: String   │         │ title: String           │
-│ address: String         │         │ status: String          │
-│ phone: String           │         │ donorName: String       │
-│ operatingHours: String  │         │ logisticsType: String   │
-└─────────────────────────┘         │ reviewedBy: String      │
-             │ 1                    └─────────────────────────┘
-             │
-             │ N
-┌─────────────────────────┐
-│        Volunteer        │
-├─────────────────────────┤
-│ id: Long (PK)           │
-│ ngoId: Long (FK)        │
-│ name: String            │
-│ role: String            │
-└─────────────────────────┘
+                     ┌─────────────────────────────────────────┐
+                     │            ConectaDoações               │
+                     └─────────────────────────────────────────┘
+                                ▲                   ▲
+                                │                   │
+                    ┌───────────┴────────┐ ┌────────┴───────────┐
+                    │   Cidadão Doador   │ │  Entidade Social   │
+                    └────────────────────┘ └────────────────────┘
+                    • Escolha da ONG        • Triagem visual ágil
+                    • Vitrine de carências  • Acordo logístico claro
+                    • Feedback respeitoso   • Gestão de voluntários
+```
+
+| Ator | Papel no Ecossistema | Valor Entregue pelo Sistema |
+| :--- | :--- | :--- |
+| **Cidadão Doador** | Agente de solidariedade que disponibiliza itens próprios para a comunidade. | Visualização das carências urgentes, facilidade de envio com 1 foto e retorno claro sobre logística ou motivo de recusa. |
+| **Voluntário / Triador** | Membro da instituição responsável pela análise de viabilidade dos itens. | Painel centralizado com filtros, botões de decisão em 1 toque e eliminação da sobrecarga em canais pessoais de mensagens. |
+| **Coordenação da ONG** | Liderança que planeja frotas, campanhas e capacidade de armazenamento. | Cadastro da instituição, definição de horários, frentes prioritárias e rastreabilidade da equipe atuante. |
+| **Comunidade Beneficiária** | Famílias acolhidas que recebem os donativos. | Recebimento de itens com dignidade, limpos, em perfeito estado de uso e com garantia de prazos de validade. |
+
+---
+
+## 🧠 5. Princípios de Interação Humano-Computador (IHC) & Usabilidade
+
+O sistema foi desenhado sob a ótica das **10 Heurísticas de Usabilidade de Jakob Nielsen**:
+
+* **Demanda Invertida (Prevenção de Erros – Nielsen #5)**: Em vez de receber doações aleatórias, o aplicativo expõe no topo do formulário uma vitrine com o que a entidade mais precisa (*Urgente*, *Necessário*, *Estoque Cheio*). Ao tocar na necessidade, o campo de categoria é pré-selecionado, evitando ofertas incompatíveis na origem.
+* **Recusa Construtiva (Diagnóstico e Recuperação de Falhas – Nielsen #9)**: Rejeições secas geram atrito e afastam o doador. O sistema disponibiliza motivos pré-formatados empáticos (ex: capacidade técnica de reparo excedida, validade de alimentos expirada) acompanhados de orientações sobre onde direcionar o item.
+* **Acordo Logístico Operacional (Correspondência com o Mundo Real – Nielsen #2)**: Elimina o vácuo operacional pós-aprovação. Define formalmente se o doador entregará o item na sede da entidade (com endereço e horário auto-preenchidos) ou se a ONG agendará uma rota de coleta em domicílio no bairro informado.
+* **Transparência e Governança (Visibilidade do Status – Nielsen #1)**: Toda doação aprovada ou recusada é carimbada com o nome e função do voluntário responsável e a data/hora da avaliação.
+
+---
+
+## 🛠️ 6. Arquitetura de Software & Modelagem de Dados
+
+O aplicativo segue o padrão **Offline-First**, garantindo funcionamento fluido mesmo em áreas com instabilidade de conexão móvel através de banco de dados SQLite embarcado com a biblioteca oficial **Android Jetpack Room v3**.
+
+### Stack Tecnológica
+* **Linguagem:** Kotlin 2.0.21 (Moderna, expressiva e padrão oficial Android)
+* **Interface:** Jetpack Compose com Material Design 3 (Declarativo, reativo e acessível)
+* **Banco Local:** SQLite nativo gerenciado via Room Database v3
+* **Concorrência e Reatividade:** Kotlin Coroutines e `StateFlow` (Unidirectional Data Flow)
+* **Mídia:** Android Photo Picker (`PickVisualMedia`) com armazenamento privado durável
+* **Renderização de Imagens:** Coil Compose
+
+### Diagrama Entidade-Relacionamento (Room v3)
+```
+┌────────────────────────────────────────┐
+│                  Ngo                   │
+├────────────────────────────────────────┤
+│ id: Long (PK, AutoGenerate)            │
+│ name: String                           │
+│ categoryFocus: String                  │
+│ address: String                        │
+│ phone: String                          │
+│ operatingHours: String                 │
+│ isPartnerVerified: Boolean             │
+└────────────────────────────────────────┘
+          │ 1                         │ 1
+          │                           │
+          │ N                         │ N
+┌─────────▼──────────────────────────────┤  ┌─────────────────────────────────────┐
+│               Donation                 │  │              Volunteer              │
+├────────────────────────────────────────┤  ├─────────────────────────────────────┤
+│ id: Long (PK, AutoGenerate)            │  │ id: Long (PK, AutoGenerate)         │
+│ ngoId: Long (FK)                       │  │ ngoId: Long (FK)                    │
+│ ngoName: String                        │  │ name: String                        │
+│ title: String                          │  │ role: String                        │
+│ category: String                       │  │ phone: String                       │
+│ description: String                    │  └─────────────────────────────────────┘
+│ imageUri: String?                      │
+│ status: String [Pendente|Aprovado|Rec.]│
+│ createdAt: Long                        │
+│ donorName: String                      │
+│ donorNeighborhood: String              │
+│ donorPhone: String                     │
+│ reviewedBy: String?                    │
+│ reviewedAt: Long?                      │
+│ rejectionReason: String?               │
+│ logisticsType: String?                 │
+│ logisticsDetails: String?              │
+└────────────────────────────────────────┘
 ```
 
 ---
 
-## 📱 4. Telas e Fluxos Essenciais
+## 📱 7. Funcionalidades e Fluxos das Telas
 
 ### Tela 1: Visão do Doador (`DonationFormScreen.kt`)
-- **Seletor de Entidade Destino**: Dropdown com as ONGs parceiras cadastradas e botão `+ Nova ONG` para inclusão imediata de novas instituições locais.
-- **Vitrine de Necessidades**: Carrossel interativo com badges de urgência. O toque pré-seleciona a categoria correspondente.
-- **Identificação do Doador**: Nome, Bairro/Região (para roteamento logístico) e WhatsApp.
-- **Cadastro do Item**: Título, categoria, descrição de conservação e anexo de foto nativa.
+1. **Seletor Dinâmico de Entidade**: O cidadão escolhe para qual instituição do município deseja doar e visualiza sede e horário de atendimento.
+2. **Cadastro Instantâneo de Novas Entidades**: Botão `+ Nova ONG` para inclusão imediata de novas instituições parceiras.
+3. **Vitrine de Necessidades Atuais**: Carrossel com chips coloridos de urgência que pré-preenchem o item.
+4. **Identificação Cidadã**: Nome, Bairro/Região (para viabilidade de rota de coleta) e WhatsApp.
+5. **Captura Visual com Cópia Segura**: O doador anexa foto da galeria que é persistida no armazenamento privado do app (`context.filesDir`), prevenindo perda de URI pós-reboot.
 
-### Tela 2: Visão da ONG / Triagem (`DonationListScreen.kt`)
-- **Filtro por Entidade**: Permite ao gestor alternar entre *"Todas as Entidades"* ou filtrar as doações de uma ONG específica.
-- **Gestão de Equipe**: Seletor do voluntário/triador ativo no plantão e botão `+ Novo Voluntário` para cadastro instantâneo de novos membros.
-- **Diálogo de Aprovação Logística**: Acordo operacional com endereço dinâmico da ONG ou agendamento de coleta no bairro do doador.
-- **Diálogo de Recusa Construtiva**: Justificativas técnicas pré-formatadas em 1 toque com assinatura do triador.
-- **Ação Direta no WhatsApp**: Botão no card para iniciar conversa com o doador para alinhar detalhes de coleta.
-
----
-
-## 📂 5. Estrutura de Arquivos
-
-```
-appandroid/
-├── app/
-│   ├── build.gradle.kts
-│   ├── src/main/
-│   │   ├── AndroidManifest.xml
-│   │   ├── res/
-│   │   │   ├── drawable/ic_conectadoacoes.xml
-│   │   │   ├── values/
-│   │   │   │   ├── strings.xml
-│   │   │   │   ├── colors.xml
-│   │   │   │   └── themes.xml
-│   │   └── java/br/com/unisinos/conectadoacoes/
-│   │       ├── data/
-│   │       │   ├── Donation.kt          # Entidade Room de Doação com rastreabilidade
-│   │       │   ├── Ngo.kt               # Entidade Room de Organização/ONG
-│   │       │   ├── Volunteer.kt         # Entidade Room de Voluntário/Triador
-│   │       │   ├── DonationDao.kt       # DAO de doações com queries e filtros
-│   │       │   ├── NgoDao.kt            # DAO de entidades parceiras
-│   │       │   ├── VolunteerDao.kt      # DAO de equipe e voluntários
-│   │       │   └── AppDatabase.kt       # Room Database v3 com Seeding automático
-│   │       ├── ui/
-│   │       │   ├── theme/
-│   │       │   │   ├── Color.kt
-│   │       │   │   ├── Theme.kt
-│   │       │   │   └── Type.kt
-│   │       │   ├── DonationFormScreen.kt# Formulário com seletor multientidade
-│   │       │   └── DonationListScreen.kt# Triagem com gestão de equipe e filtros
-│   │       └── MainActivity.kt          # Scaffold e coordenação de DAOs
-├── gradle/
-│   ├── libs.versions.toml               # Version Catalog oficial
-│   └── wrapper/
-│       └── gradle-wrapper.properties    # Gradle 9.5
-├── build.gradle.kts                     # Build raiz
-├── settings.gradle.kts                  # Configuração de repositórios
-├── gradle.properties                    # Parâmetros JVM e Kotlin
-├── gradlew.bat                          # Executável Gradle Windows
-└── README.md                            # Documentação acadêmica e guia Git
-```
+### Tela 2: Central de Triagem da ONG (`DonationListScreen.kt`)
+1. **Filtros por Entidade e Status**: Permite alternar entre visualizar doações de uma única ONG ou de toda a rede comunitária.
+2. **Gestão de Equipe e Plantão**: Seletor do voluntário ativo no turno e botão `+ Novo Voluntário` para cadastro de novos triadores em 1 toque.
+3. **Diálogo de Aprovação com Acordo Logístico**: Escolha entre entrega no ponto de coleta ou coleta em domicílio com janela de turno.
+4. **Diálogo de Recusa com Feedback Construtivo**: Escolha de justificativa padronizada e campo de nota orientativa.
+5. **Integração com WhatsApp**: Botão de contato direto com o doador para alinhamento rápido.
 
 ---
 
-## 🐙 6. Publicação no GitHub (Passo a Passo)
+## 💻 8. Como Clonar, Compilar e Executar
 
-Para publicar o projeto no seu repositório pessoal do GitHub com o histórico organizado de commits, execute os seguintes passos no terminal (PowerShell ou Git Bash) aberto dentro da pasta `appandroid`:
+### Pré-requisitos
+* **Android Studio:** Ladybug (2024.2.1+) ou versão equivalente com suporte a AGP 8.x/9.x.
+* **JDK:** Java 17 ou Java 21 (incluso no Android Studio JBR).
+* **Android SDK:** SDK Platform 35 (Android 15) instalado via SDK Manager.
+* **Dispositivo de Teste:** Emulador Android (API 26+) ou smartphone físico com depuração USB ativa.
 
-### Passo 1: Inicializar o repositório Git local
-```powershell
-cd c:\Users\ResTIC55\Documents\UNISINOS\appandroid
-git init -b main
-```
+### Passo a Passo de Execução
 
-### Passo 2: Histórico de Commits Semânticos
-Você pode realizar o commit de todos os arquivos ou registrá-los organizados por marcos:
+1. **Clonar o Repositório:**
+   ```bash
+   git clone https://github.com/JacksonDeLima/conectadoacoes.git
+   ```
 
-```powershell
-# 1. Configuração e Estrutura Inicial
-git add gradle/ build.gradle.kts settings.gradle.kts gradle.properties gradlew.bat .gitignore
-git commit -m "chore: setup initial android project with gradle 9.5 and version catalog"
+2. **Abrir no Android Studio:**
+   - Abra o **Android Studio**.
+   - Selecione **File > Open** e navegue até a pasta clonada `conectadoacoes`.
+   - Aguarde o término da sincronização do Gradle (*Gradle Sync*).
 
-# 2. Camada de Dados e Entidades Room
-git add app/src/main/java/br/com/unisinos/conectadoacoes/data/
-git commit -m "feat(data): implement room database v3 with donation, ngo and volunteer entities"
-
-# 3. Interface Jetpack Compose e Identidade Visual
-git add app/src/main/res/ app/src/main/AndroidManifest.xml app/src/main/java/br/com/unisinos/conectadoacoes/ui/ app/src/main/java/br/com/unisinos/conectadoacoes/MainActivity.kt
-git commit -m "feat(ui): implement multi-ngo donor form and advanced triage screens in jetpack compose"
-
-# 4. Documentação e Melhorias de IHC
-git add README.md
-git commit -m "docs: add comprehensive academic and hci documentation"
-```
-
-### Passo 3: Conectar ao seu GitHub e Enviar (Push)
-Crie um repositório vazio no seu GitHub (ex: `conectadoacoes`) e vincule o endereço:
-```powershell
-git remote add origin https://github.com/SEU_USUARIO/conectadoacoes.git
-git push -u origin main
-```
+3. **Executar a Aplicação:**
+   - Selecione o seu emulador ou dispositivo no seletor de dispositivos superior.
+   - Clique no botão **Run ▶** ou pressione **Shift + F10**.
 
 ---
 
-## 👨‍🎓 7. Alinhamento Acadêmico e Apresentação para a Banca
+## 📊 9. Indicadores de Impacto Social Estimado (KPIs)
 
-1. **Arquitetura Aberta e Escalável**: Mostre que o app não é um protótipo com valores fixos, mas sim uma **plataforma capaz de conectar qualquer ONG da cidade com cidadãos doadores**.
-2. **Governança e Rastreabilidade**: Cada parecer de triagem possui a identificação do voluntário, data/hora e o acordo logístico pactuado.
-3. **Usabilidade Centrada no Humano (IHC)**: A recusa construtiva e a demanda invertida demonstram maturidade no relacionamento com a comunidade.
+Para validação contínua da eficácia extensionista junto às ONGs parceiras, o projeto estabelece as seguintes métricas:
+
+| Indicador | Situação Anterior (WhatsApp / Informal) | Meta com o ConectaDoações |
+| :--- | :--- | :--- |
+| **Tempo Médio de Resposta da Triagem** | 24 a 72 horas por conversa de chat | **Menos de 2 minutos** por laudo em 1 toque |
+| **Índice de Coletas Frustradas** | ~35% dos deslocamentos de veículos | **Redução para menos de 5%** com triagem prévia |
+| **Aproveitamento de Doações Recebidas** | ~50% dos itens doados sem condição de uso | **Mais de 85% de itens prontos para uso** com demanda invertida |
+| **Retenção e Recorrência de Doadores** | Baixa (devido à falta de feedback) | **Engajamento contínuo** com transparência nas decisões |
+
+---
+
+## 📄 10. Licença e Autoria
+
+Projeto desenvolvido por **Jackson Luis** para fins acadêmicos e de extensão comunitária no âmbito da **Universidade do Vale do Rio dos Sinos (UNISINOS)**.
+
+Distribuído sob a licença **MIT**, permitindo que outras entidades sociais, municípios e instituições de ensino adaptem e ampliem a plataforma livremente para fins comunitários.
