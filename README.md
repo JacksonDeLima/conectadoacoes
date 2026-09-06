@@ -4,6 +4,7 @@
 > **Projeto de Extensão Universitária**  
 > **Instituição:** Universidade do Vale do Rio dos Sinos – **UNISINOS**  
 > **Curso:** ADS - Análise e Desenvolvimento de Sistemas - Campus São Leopoldo  
+> **Discente / Desenvolvedor:** Jackson Luis S. de Lima  
 > **Área Temática:** Tecnologia, Assistência Social e Sustentabilidade  
 
 ---
