@@ -7,8 +7,8 @@
 # PROJETO CONECTADOAÇÕES
 ## Plataforma Móvel para Gestão de Cadeia de Custódia, Triagem Colaborativa e Prestação de Contas para Entidades do Terceiro Setor
 
-* **Discente / Equipe de Desenvolvimento:** Jackson Luis S. de Lima (e Equipe ADS UNISINOS)
-* **Semestre Letivo:** 2026/1
+* **Discente / Desenvolvedor:** Jackson Luis S. de Lima 
+* **Semestre Letivo:** 2026/2
 * **Instituição de Ensino:** UNISINOS (São Leopoldo / RS)
 * **Entidade Parceira Externa:** Banco Comunitário de Alimentos do Vale do Sinos / Associações Beneficentes da Região
 * **Repositório Oficial:** [https://github.com/JacksonDeLima/conectadoacoes](https://github.com/JacksonDeLima/conectadoacoes)
