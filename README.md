@@ -1,4 +1,4 @@
-# ConectaDoações 🤝📦
+# ConectaDoações 🤝
 ### Plataforma Mobile de Logística Reversa, Triagem Inteligente e Gestão Comunitária de Doações
 
 > **Projeto de Extensão Universitária**  
